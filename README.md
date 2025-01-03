@@ -1,0 +1,2 @@
+# AI_TRPG
+OpenAIのエージェントフレームワークを使用したTRPG
