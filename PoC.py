@@ -29,6 +29,15 @@ Tactics_agent = Agent(
     functions=[transer_to_GM_agent],
 )
 
+# 試してみたところ基本的にGMエージェントでいい気がするのでいらないかもしれない。
+World_agent = Agent(
+    name="World",
+    instructions="""あなたは、TRPGのゲームにおいて、ワールドの世界、環境、イベントを管理するエージェントです。
+    入力をもとに、ワールドの展開を考え、GameMasterに内容を伝えてください。
+    """,
+    functions=[transer_to_GM_agent],
+)
+
 print("-------------------------------------")
 for f in GameMaster_agent.functions:
     print(f.__name__)
