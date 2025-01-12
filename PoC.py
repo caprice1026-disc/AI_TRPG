@@ -1,34 +1,39 @@
 from swarm import Swarm, Agent
 from icecream import ic # デバッグ用
+from swarm.repl import run_demo_loop
 
 client = Swarm()
 
-def instructions(context_variables):
-    # コンテキスト変数から名前を取得し、指示を生成
-    name = context_variables.get("name", "ユーザー")
-    character_class = context_variables.get("character_class", None)
-    back_story = context_variables.get("back_story", None)
-    return f"名前（{name}）とクラス（{character_class}）を持つキャラクターのバックストーリーを作成してください。バックストーリー：{back_story}"
+def transer_to_GM_agent():
+    return GameMaster_agent
 
-# エージェントの設定
-agent = Agent(
-    name="Agent",
-    instructions=instructions,
+def transer_to_Tactics_agent():
+    return Tactics_agent
+
+GameMaster_agent = Agent(
+    name="GameMaster",
+    instructions="""あなたはTRPGのゲームマスターとして、プレイヤーとのやり取りを担当します。
+    プレイヤーの名前は、{name}さんです。{name}さんのキャラクタークラスは、{character_class}です。
+    彼には、{back_story}というバックストーリーがあります。
+    彼の入力をもとに、各エージェントに指示を出し、ストーリーを進めてください。また、エージェントから帰ってきた結果をもとに
+    プレイヤーに情報を伝えてください。
+    """,
+    functions=[transer_to_Tactics_agent],
 )
 
-# コンテキスト変数の設定
-context_variables = {
-    "name": "John Doe",
-    "character_class": "名もなき者",
-    "back_story": "ある日、彼は目を覚ましました。彼は何も覚えていませんでした。彼は名もない者でした。",
-    "level": 1,
-  
-}
-
-# アカウント詳細の出力を実行
-response = client.run(
-    messages=[{"role": "user", "content": "与えられた情報をもとにストーリーを作ってください"}],
-    agent=agent,
-    context_variables=context_variables,
+Tactics_agent = Agent(
+    name="Tactics",
+    instructions="""あなたは、TRPGのゲームにおいて、戦闘部分のストーリーを紡ぐエージェントです。
+    入力をもとに、戦闘の展開を考え、GameMasterに内容を伝えてください。
+    """,
+    functions=[transer_to_GM_agent],
 )
-ic(response.messages[-1]["content"])
+
+print("-------------------------------------")
+for f in GameMaster_agent.functions:
+    print(f.__name__)
+print("-------------------------------------")
+
+if __name__ == "__main__":
+    # デモループの実行
+    run_demo_loop(GameMaster_agent, debug=False)
