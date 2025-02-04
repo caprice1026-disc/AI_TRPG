@@ -38,10 +38,10 @@ World_agent = Agent(
     functions=[transer_to_GM_agent],
 )
 
-print("-------------------------------------")
+ic("-------------------------------------")
 for f in GameMaster_agent.functions:
-    print(f.__name__)
-print("-------------------------------------")
+    ic(f.__name__)
+ic("-------------------------------------")
 
 if __name__ == "__main__":
     # デモループの実行

@@ -16,6 +16,7 @@ TPRG PoC using Swarm
 
 from swarm import Swarm, Agent
 import json
+from icecream import ic # デバッグ用
 
 # Swarmクライアントの初期化
 client = Swarm()
@@ -154,80 +155,80 @@ def run_poc():
     # 初期はGMエージェントでシナリオ生成
     current_agent = gm_agent
     response = client.run(agent=current_agent, messages=messages)
-    print(f"{current_agent.name}: {response.messages[-1]['content']}")
+    ic(f"{current_agent.name}: {response.messages[-1]['content']}")
     
     # ① 戦闘シナリオに移行：ユーザーが「敵が現れた！」と入力
     messages.append({"role": "user", "content": "突然、敵が現れた！戦闘開始！"})
     response = client.run(agent=current_agent, messages=messages)
     if response.agent.name != current_agent.name:
         current_agent = response.agent
-        print(f"--- ハンドオフ: {current_agent.name} に転送 ---")
-    print(f"{current_agent.name}: {response.messages[-1]['content']}")
+        ic(f"--- ハンドオフ: {current_agent.name} に転送 ---")
+    ic(f"{current_agent.name}: {response.messages[-1]['content']}")
     
     # 戦闘エージェントで戦闘処理（例：敵「ゴブリン」、プレイヤーHP:40、敵HP:30）
     messages.append({"role": "user", "content": "戦闘開始。敵はゴブリン、プレイヤーHPは40、敵HPは30。"})
     response = client.run(agent=current_agent, messages=messages)
-    print(f"{current_agent.name}: {response.messages[-1]['content']}")
+    ic(f"{current_agent.name}: {response.messages[-1]['content']}")
     
     # ② キャラクター作成へ戻る（戦闘後にキャラの強化や再生成を希望）
     messages.append({"role": "user", "content": "戦闘終了。次はキャラクター作成をしたい。"})
     response = client.run(agent=gm_agent, messages=messages)
     if response.agent.name != gm_agent.name:
         current_agent = response.agent
-        print(f"--- ハンドオフ: {current_agent.name} に転送 ---")
-    print(f"{current_agent.name}: {response.messages[-1]['content']}")
+        ic(f"--- ハンドオフ: {current_agent.name} に転送 ---")
+    ic(f"{current_agent.name}: {response.messages[-1]['content']}")
     
     # キャラクター管理エージェントでキャラクター生成
     messages.append({"role": "user", "content": "キャラクター名は『勇者』、カオス度は20で作成してください。"})
     response = client.run(agent=current_agent, messages=messages)
-    print(f"{current_agent.name}: {response.messages[-1]['content']}")
+    ic(f"{current_agent.name}: {response.messages[-1]['content']}")
     
     # ③ アイテム取得シナリオ：探索中にアイテム取得
     messages.append({"role": "user", "content": "探索中に『魔法の剣』を発見しました。"})
     response = client.run(agent=gm_agent, messages=messages)
     if response.agent.name != gm_agent.name:
         current_agent = response.agent
-        print(f"--- ハンドオフ: {current_agent.name} に転送 ---")
-    print(f"{current_agent.name}: {response.messages[-1]['content']}")
+        ic(f"--- ハンドオフ: {current_agent.name} に転送 ---")
+    ic(f"{current_agent.name}: {response.messages[-1]['content']}")
     
     # アイテム管理エージェントでアイテム追加処理
     messages.append({"role": "user", "content": "『魔法の剣』をインベントリに追加してください。"})
     response = client.run(agent=current_agent, messages=messages)
-    print(f"{current_agent.name}: {response.messages[-1]['content']}")
+    ic(f"{current_agent.name}: {response.messages[-1]['content']}")
     
     # ④ 世界イベントの確認：周囲の状況を把握
     messages.append({"role": "user", "content": "次に、現在の世界の状況を教えてください。"})
     response = client.run(agent=gm_agent, messages=messages)
     if response.agent.name != gm_agent.name:
         current_agent = response.agent
-        print(f"--- ハンドオフ: {current_agent.name} に転送 ---")
-    print(f"{current_agent.name}: {response.messages[-1]['content']}")
+        ic(f"--- ハンドオフ: {current_agent.name} に転送 ---")
+    ic(f"{current_agent.name}: {response.messages[-1]['content']}")
     
     # ワールドエージェントで世界イベント生成
     messages.append({"role": "user", "content": "現在の世界イベントは？"})
     response = client.run(agent=current_agent, messages=messages)
-    print(f"{current_agent.name}: {response.messages[-1]['content']}")
+    ic(f"{current_agent.name}: {response.messages[-1]['content']}")
     
     # ⑤ NPCとの会話：NPCエージェントとの対話を実施
     messages.append({"role": "user", "content": "近くのNPCと会話したいです。"})
     response = client.run(agent=gm_agent, messages=messages)
     if response.agent.name != gm_agent.name:
         current_agent = response.agent
-        print(f"--- ハンドオフ: {current_agent.name} に転送 ---")
-    print(f"{current_agent.name}: {response.messages[-1]['content']}")
+        ic(f"--- ハンドオフ: {current_agent.name} に転送 ---")
+    ic(f"{current_agent.name}: {response.messages[-1]['content']}")
     
     # NPCエージェントで会話シミュレーション
     messages.append({"role": "user", "content": "『この町の伝説は何ですか？』と聞いてください。"})
     response = client.run(agent=current_agent, messages=messages)
-    print(f"{current_agent.name}: {response.messages[-1]['content']}")
+    ic(f"{current_agent.name}: {response.messages[-1]['content']}")
     
     # 最後に、ゲーム終了・リセット処理（全データが消えれば、全キャラがスライムLv1…かも？）
     messages.append({"role": "user", "content": "全て終了。ゲームをリセットしてください。"})
     response = client.run(agent=gm_agent, messages=messages)
     if response.agent.name != gm_agent.name:
         current_agent = response.agent
-        print(f"--- ハンドオフ: {current_agent.name} に転送 ---")
-    print(f"{current_agent.name}: {response.messages[-1]['content']}")
+        ic(f"--- ハンドオフ: {current_agent.name} に転送 ---")
+    ic(f"{current_agent.name}: {response.messages[-1]['content']}")
 
 if __name__ == "__main__":
     run_poc()
