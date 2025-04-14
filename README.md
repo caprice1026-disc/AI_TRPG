@@ -9,27 +9,59 @@ OpenAIのエージェントフレームワークを使用したTRPG
 ## エージェント
 
 ```mermaid
-flowchart TD
+graph LR
+    subgraph "プレイヤー空間"
+        P[プレイヤー]
+    end
 
-    U[ユーザー]
-    GM_IN[入力GMエージェント]
-    BA[戦闘エージェント]
-    CA[キャラ管理エージェント]
-    IA[アイテム管理エージェント]
-    WA[ワールド管理エージェント]
-    GM_OUT[出力GMエージェント]
-    OUT[出力]
+    subgraph "AI GM システム (オーケストレーションフレームワーク)"
+        Orch(オーケストレーター /<br>メインコントローラー)
 
-    U --> GM_IN
-    GM_IN --> BA
-    GM_IN --> CA
-    GM_IN --> IA
-    GM_IN --> WA
-    BA --> GM_OUT
-    CA --> GM_OUT
-    IA --> GM_OUT
-    WA --> GM_OUT
-    GM_OUT --> OUT
+        subgraph "専門エージェント群"
+            Scenario(シナリオ / プロット管理)
+            World(世界観 / 描写)
+            NPC(NPC対話 / 行動)
+            Rules(ルール裁定 / 判定)
+            State(状態管理)
+            Consistency[(整合性 / 矛盾チェック)] -.-> Orch;  --> Optional
+        end
+    end
+
+    %% プレイヤーからの入力
+    P -- 1. アクション入力 (例: 罠を調べる) --> Orch;
+
+    %% オーケストレーターによる指示
+    Orch -- 2. 指示/解釈 --> Rules;
+    Orch -- 7. 描写指示 --> World;
+    Orch -- (必要に応じて) --> Scenario;
+    Orch -- (必要に応じて) --> NPC;
+
+    %% ルール裁定プロセス
+    Rules -- 3. 判定に必要な情報要求 --> State;
+    State -- 4. 要求された状態情報提供 (例: 探索技能値) --> Rules;
+    Rules -- 5. 判定実行 (難易度設定/ダイスロール) --> Rules;
+    Rules -- 6. 判定結果報告 (例: 失敗) --> Orch;
+
+    %% 描写プロセス
+    World -- 8. 生成された描写テキスト --> Orch;
+
+    %% オーケストレーターからプレイヤーへの返答
+    Orch -- 9. 最終的な応答生成 --> P;
+
+    %% 状態更新 (例: 時間経過、判定結果など)
+    Orch --> State;
+    Rules --> State;
+    Scenario --> State;
+    NPC --> State;
+
+    %% 整合性チェック (オプション)
+    %% 他エージェントの出力を監視するイメージ
+    %% World -- チェック依頼 --> Consistency;
+    %% NPC -- チェック依頼 --> Consistency;
+    %% Scenario -- チェック依頼 --> Consistency;
+    %% Consistency -- 矛盾指摘/修正案 --> Orch;
+    %% (上記は一例。実装によりフローは異なる)
+
 ```
 
 
