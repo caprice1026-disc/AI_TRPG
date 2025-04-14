@@ -23,7 +23,7 @@ graph LR
             NPC(NPC対話 / 行動)
             Rules(ルール裁定 / 判定)
             State(状態管理)
-            Consistency[(整合性 / 矛盾チェック)] -.-> Orch;  --> Optional
+            Consistency[(整合性 / 矛盾チェック)] -.-> Orch %% Optional Agent
         end
     end
 
@@ -53,14 +53,6 @@ graph LR
     Rules --> State;
     Scenario --> State;
     NPC --> State;
-
-    %% 整合性チェック (オプション)
-    %% 他エージェントの出力を監視するイメージ
-    %% World -- チェック依頼 --> Consistency;
-    %% NPC -- チェック依頼 --> Consistency;
-    %% Scenario -- チェック依頼 --> Consistency;
-    %% Consistency -- 矛盾指摘/修正案 --> Orch;
-    %% (上記は一例。実装によりフローは異なる)
 
 ```
 
