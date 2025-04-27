@@ -23,7 +23,7 @@ graph LR
             NPC(NPC対話 / 行動)
             Rules(ルール裁定 / 判定)
             State(状態管理)
-            Consistency[(整合性 / 矛盾チェック)] -.-> Orch %% Optional Agent
+            Consistency[(整合性 / 矛盾チェック)] -.-> Orch 
         end
     end
 
