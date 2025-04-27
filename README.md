@@ -14,45 +14,69 @@ graph LR
         P[プレイヤー]
     end
 
-    subgraph "AI GM システム (オーケストレーションフレームワーク)"
-        Orch(オーケストレーター /<br>メインコントローラー)
+    subgraph "AI GM システム"
+        Orch(オーケストレーター)
+        Scenario(シナリオ / プロット管理)
+        World(世界観 / 描写)
+        Rules(ルール設定 / 判定)
+        State(状態管理)
 
-        subgraph "専門エージェント群"
-            Scenario(シナリオ / プロット管理)
-            World(世界観 / 描写)
-            NPC(NPC対話 / 行動)
-            Rules(ルール裁定 / 判定)
-            State(状態管理)
-            Consistency[(整合性 / 矛盾チェック)] -.-> Orch 
-        end
+        %% 状態管理への接続: 各エージェントは状態を随時参照・更新
+        Orch -.-> State
+        Scenario -.-> State
+        World -.-> State
+        Rules -.-> State
     end
 
-    %% プレイヤーからの入力
-    P -- 1. アクション入力 (例: 罠を調べる) --> Orch;
+    %% --- フロー定義 ---
 
-    %% オーケストレーターによる指示
-    Orch -- 2. 指示/解釈 --> Rules;
-    Orch -- 7. 描写指示 --> World;
-    Orch -- (必要に応じて) --> Scenario;
-    Orch -- (必要に応じて) --> NPC;
+    %% 1. プレイヤー入力 → オーケストレーター
+    P -- 1 アクション入力 --> Orch
 
-    %% ルール裁定プロセス
-    Rules -- 3. 判定に必要な情報要求 --> State;
-    State -- 4. 要求された状態情報提供 (例: 探索技能値) --> Rules;
-    Rules -- 5. 判定実行 (難易度設定/ダイスロール) --> Rules;
-    Rules -- 6. 判定結果報告 (例: 失敗) --> Orch;
+    %% 2. オーケストレーター → シナリオ、プロット管理
+    %% (ダイスロール要否など検討)
+    Orch -- 2 状況に応じた指示 --> Scenario
 
-    %% 描写プロセス
-    World -- 8. 生成された描写テキスト --> Orch;
+    %% 3. シナリオ、プロット管理からの分岐
+    subgraph "3 状況に応じた処理分岐"
+        direction LR
+        %% 分岐ノード定義
+        World_Proc(描写処理)
+        Rules_Proc(判定処理)
+        Combat_Proc(戦闘処理)
+        World_Combat_Start(戦闘描写 開始)
+        World_Combat_Cont(戦闘描写 継続/結果)
 
-    %% オーケストレーターからプレイヤーへの返答
-    Orch -- 9. 最終的な応答生成 --> P;
+        %% シナリオからの分岐接続
+        Scenario -- 3a. ダイスロール不要 --> World_Proc
+        Scenario -- 3b. ダイスロール要 --> Rules_Proc
+        Scenario -- 3c. 戦闘 --> Combat_Proc
 
-    %% 状態更新 (例: 時間経過、判定結果など)
-    Orch --> State;
-    Rules --> State;
-    Scenario --> State;
-    NPC --> State;
+        %% 各処理から担当エージェントへ接続
+        World_Proc --> World
+        Rules_Proc --> Rules
+
+        %% 3b. ダイスロール要の場合: 判定後に描写
+        Rules -- 判定結果 --> World
+
+        %% 3c. 戦闘の場合: 戦闘描写 → 判定 → 戦闘描写 → 世界観描写
+        Combat_Proc --> World_Combat_Start
+        %% 戦闘判定指示
+        World_Combat_Start --> Rules
+        %% 戦闘判定結果を受けて描写継続/結果
+        Rules -- 戦闘判定結果 --> World_Combat_Cont
+        %% 戦闘結果を反映した世界観描写へ
+        World_Combat_Cont --> World
+    end
+
+    %% 4. 世界観描写 → オーケストレーター → プレイヤー
+    World -- 4a. 生成された描写 --> Orch
+    Orch -- 4b. 最終的な応答生成 --> P
+
+    %% 内部的な状態参照・更新 (点線で表現)
+    Rules <--> State
+    World <--> State
+    Scenario <--> State
 
 ```
 
