@@ -1,0 +1,11 @@
+langgraphのハウツーガイド
+
+https://langchain-ai.github.io/langgraph/how-tos/
+
+このアーキテクチャで実装
+
+https://langchain-ai.github.io/langgraph/concepts/multi_agent/#supervisor-tool-calling
+
+Tips
+
+https://langchain-ai.github.io/langgraph/concepts/agentic_concepts/
