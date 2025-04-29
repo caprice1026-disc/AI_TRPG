@@ -9,3 +9,12 @@ https://langchain-ai.github.io/langgraph/concepts/multi_agent/#supervisor-tool-c
 Tips
 
 https://langchain-ai.github.io/langgraph/concepts/agentic_concepts/
+
+stateの型定義はこんな感じの予定（例）
+
+class GameState(MessagesState):
+    inventory: list[dict] = Field(default_factory=list)
+    stats:    dict[str, int] = Field(
+        default_factory=lambda: {"hp": 10, "atk": 3, "def": 1}
+    )
+    session_id: str | None = None        # thread_id と重複回避
