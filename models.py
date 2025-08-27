@@ -10,7 +10,10 @@ import time
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
+<<<<<<< HEAD
 
+=======
+>>>>>>> parent of 65a1552 (型ヒントの修正と互換用Sessionラッパー追加)
 import redis
 
 
@@ -395,8 +398,8 @@ class SessionBundle:
     def redis_load(session_id: str, r: Optional[redis.Redis] = None) -> Optional["SessionBundle"]:
         '''Redisからセッション状態を読み込む（なければNone）'''
         r = r or get_redis()
-        raw = cast(Optional[str], r.get(rkey("session", session_id)))
-        if raw is None:
+        raw = r.get(rkey("session", session_id))
+        if not raw:
             return None
         d = json.loads(raw)
         bundle = SessionBundle(
@@ -508,30 +511,6 @@ class SessionBundle:
         return f"[{ts}] [SYS] {text}"
 
 
-# 旧版との互換用に、簡易なラッパークラスを用意
-class Session(SessionBundle):
-    """旧インターフェース互換のセッション管理"""
-
-    @staticmethod
-    def new(session_id: str, player_name: str, job: str, chaos: int, rng: Optional[random.Random] = None) -> "Session":
-        return cast(Session, SessionBundle.new_session(session_id, player_name, job, chaos, rng))
-
-    @staticmethod
-    def load(session_id: str) -> Optional["Session"]:
-        return cast(Optional[Session], SessionBundle.redis_load(session_id))
-
-    def save(self, r: Optional[redis.Redis] = None) -> None:
-        self.redis_save(r)
-
-    @property
-    def char(self) -> Character:
-        return self.character
-
-    @property
-    def logs(self) -> List[str]:
-        return self.battle.logs
-
-
 # =========================
 # 便利関数（Flaskハンドラから使う想定）
 # =========================
@@ -550,7 +529,7 @@ def load_or_create_session(session_id: str, player_name: str = "名無し", job:
 def delete_session(session_id: str) -> bool:
     '''セッションを完全削除する（スライムLv1に戻す儀式）'''
     r = get_redis()
-    n = cast(int, r.delete(rkey("session", session_id)))
+    n = r.delete(rkey("session", session_id))
     return n > 0
 
 
