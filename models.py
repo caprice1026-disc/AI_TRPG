@@ -9,7 +9,7 @@ import random
 import time
 from dataclasses import dataclass, field, asdict
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Tuple
 import redis
 
 
@@ -395,7 +395,7 @@ class SessionBundle:
         '''Redisからセッション状態を読み込む（なければNone）'''
         r = r or get_redis()
         raw = cast(Optional[str], r.get(rkey("session", session_id)))
-        if raw is None:
+        if not raw:
             return None
         d = json.loads(raw)
         bundle = SessionBundle(
@@ -505,30 +505,6 @@ class SessionBundle:
         '''システムメッセージの整形'''
         ts = time.strftime("%H:%M:%S", time.localtime())
         return f"[{ts}] [SYS] {text}"
-
-
-# 旧版との互換用に、簡易なラッパークラスを用意
-class Session(SessionBundle):
-    """旧インターフェース互換のセッション管理"""
-
-    @staticmethod
-    def new(session_id: str, player_name: str, job: str, chaos: int, rng: Optional[random.Random] = None) -> "Session":
-        return cast(Session, SessionBundle.new_session(session_id, player_name, job, chaos, rng))
-
-    @staticmethod
-    def load(session_id: str) -> Optional["Session"]:
-        return cast(Optional[Session], SessionBundle.redis_load(session_id))
-
-    def save(self, r: Optional[redis.Redis] = None) -> None:
-        self.redis_save(r)
-
-    @property
-    def char(self) -> Character:
-        return self.character
-
-    @property
-    def logs(self) -> List[str]:
-        return self.battle.logs
 
 
 # =========================
