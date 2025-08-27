@@ -24,7 +24,10 @@ def gm_node(state: GState) -> GState:
 
 def battle_node(state: GState) -> GState:
     '''バトルノード：ダメージを与えるだけの最小処理'''
-    sess = Session.load(state["session_id"])
+    sid = state.get("session_id")
+    if not sid:
+        return {"message": "セッションID未指定", "decision": "battle", "dmg_to_player": 0}
+    sess = Session.load(sid)
     if not sess:
         return {"message": "セッションが見つからない", "decision": "battle", "dmg_to_player": 0}
 
@@ -48,7 +51,10 @@ def battle_node(state: GState) -> GState:
 
 def narrate_node(state: GState) -> GState:
     '''ナレーノード：探索・雰囲気テキストのダミー'''
-    sess = Session.load(state["session_id"])
+    sid = state.get("session_id")
+    if not sid:
+        return {"message": "セッションID未指定", "decision": "narrate"}
+    sess = Session.load(sid)
     if not sess:
         return {"message": "セッションが見つからない", "decision": "narrate"}
     line = random.choice(["森は静かだ…", "遠くでスライムの鳴き声がする。", "道端に奇妙な石碑がある。"])

@@ -2,7 +2,7 @@ from __future__ import annotations
 from flask import Flask, request, jsonify
 from config import Config
 from models import Session
-from graph import APP
+from graph import APP, GState
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -34,15 +34,18 @@ def tick():
     '''LangGraphを1ステップだけ動かす（intentに応じて展開）'''
     body = request.get_json(silent=True) or {}
     intent = (body.get("intent") or "explore").lower()
-    state = {"session_id": _sid(), "intent": intent}
+    state: GState = {"session_id": _sid(), "intent": intent}
     out = APP.invoke(state)
     # 直近ログも少し返す
     sess = Session.load(_sid())
     logs = sess.logs[-6:] if sess else []
-    return jsonify({"message": out.get("message"), "decision": out.get("decision"),
-                    "hp": sess.char.hp if sess else None,
-                    "hp_max": sess.char.hp_max if sess else None,
-                    "logs": logs})
+    return jsonify({
+        "message": out.get("message"),
+        "decision": out.get("decision"),
+        "hp": sess.char.hp if sess else None,
+        "hp_max": sess.char.hp_max if sess else None,
+        "logs": logs,
+    })
 
 # 実行: FLASK_APP=app.py flask run
 if __name__ == "__main__":
