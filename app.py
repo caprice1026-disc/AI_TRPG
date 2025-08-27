@@ -1,8 +1,8 @@
 from __future__ import annotations
 from flask import Flask, request, jsonify
 from config import Config
-from models import Session
-from graph import APP
+from models import SessionBundle
+from graph import APP, GState
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -19,14 +19,14 @@ def start():
     name  = body.get("name", "勇者")
     job   = body.get("job", "戦士")
     chaos = int(body.get("chaos", 0))
-    sess = Session.new(_sid(), name, job, chaos)
-    sess.save()
+    bundle = SessionBundle.new_session(_sid(), name, job, chaos)
+    bundle.redis_save()
     return jsonify({
         "ok": True,
-        "session_id": sess.session_id,
-        "char": {"name": sess.char.name, "job": sess.char.job,
-                 "hp": sess.char.hp, "hp_max": sess.char.hp_max,
-                 "atk": sess.char.atk, "df": sess.char.df, "chaos": sess.char.chaos}
+        "session_id": bundle.session_id,
+        "char": {"name": bundle.character.name, "job": bundle.character.job,
+                 "hp": bundle.character.hp, "hp_max": bundle.character.hp_max,
+                 "atk": bundle.character.atk, "df": bundle.character.df, "chaos": bundle.character.chaos}
     })
 
 @app.post("/tick")
@@ -34,14 +34,14 @@ def tick():
     '''LangGraphを1ステップだけ動かす（intentに応じて展開）'''
     body = request.get_json(silent=True) or {}
     intent = (body.get("intent") or "explore").lower()
-    state = {"session_id": _sid(), "intent": intent}
+    state: GState = {"session_id": _sid(), "intent": intent}
     out = APP.invoke(state)
     # 直近ログも少し返す
-    sess = Session.load(_sid())
-    logs = sess.logs[-6:] if sess else []
+    bundle = SessionBundle.redis_load(_sid())
+    logs = bundle.battle.logs[-6:] if bundle else []
     return jsonify({"message": out.get("message"), "decision": out.get("decision"),
-                    "hp": sess.char.hp if sess else None,
-                    "hp_max": sess.char.hp_max if sess else None,
+                    "hp": bundle.character.hp if bundle else None,
+                    "hp_max": bundle.character.hp_max if bundle else None,
                     "logs": logs})
 
 # 実行: FLASK_APP=app.py flask run

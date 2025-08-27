@@ -9,7 +9,7 @@ import random
 import time
 from dataclasses import dataclass, field, asdict
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 import redis
 
 
@@ -394,7 +394,7 @@ class SessionBundle:
     def redis_load(session_id: str, r: Optional[redis.Redis] = None) -> Optional["SessionBundle"]:
         '''Redisからセッション状態を読み込む（なければNone）'''
         r = r or get_redis()
-        raw = r.get(rkey("session", session_id))
+        raw = cast(Optional[str], r.get(rkey("session", session_id)))
         if not raw:
             return None
         d = json.loads(raw)
@@ -525,7 +525,7 @@ def load_or_create_session(session_id: str, player_name: str = "名無し", job:
 def delete_session(session_id: str) -> bool:
     '''セッションを完全削除する（スライムLv1に戻す儀式）'''
     r = get_redis()
-    n = r.delete(rkey("session", session_id))
+    n = cast(int, r.delete(rkey("session", session_id)))
     return n > 0
 
 
