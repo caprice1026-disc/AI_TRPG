@@ -1,6 +1,3 @@
-# models.py
-# -*- coding: utf-8 -*-
-
 from __future__ import annotations
 
 import json
@@ -9,7 +6,7 @@ import random
 import time
 from dataclasses import dataclass, field, asdict
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 import redis
 
 
@@ -28,7 +25,7 @@ def get_redis() -> redis.Redis:
 
 # キーのプレフィックス（同一Redisを他用途と共用しても衝突しにくくする）
 REDIS_NS = os.getenv("GAME_REDIS_NS", "trpg")
-SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", "60*60*24"))  # デフォ1日
+SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", 86400))  # 1日、以前の記法ではエラーが発生するので修正
 
 
 def rkey(*parts: str) -> str:
