@@ -1,20 +1,28 @@
 from __future__ import annotations
-from typing import TypedDict, Literal, NotRequired
+from typing import TypedDict, Literal
+from typing_extensions import NotRequired # Python 3.10までは typing_extensions から
 from langgraph.graph import StateGraph, START, END
 import random
 from models import SessionBundle
 
 
 class GState(TypedDict):
-    '''LangGraphの共有状態（最小）'''
     session_id: str
-    intent: NotRequired[str]            # 例: "start" / "attack" / "explore"
+    intent: NotRequired[str]
     decision: NotRequired[Literal["battle","narrate"]]
-    message: NotRequired[str]           # ユーザへ返すテキスト（要約/演出）
+    message: NotRequired[str]
     dmg_to_player: NotRequired[int]
 
+class GUpdate(TypedDict, total=False):
+    # ここは「更新しうるキー」だけ、全部 optional
+    session_id: str
+    intent: str
+    decision: Literal["battle","narrate"]
+    message: str
+    dmg_to_player: int
 
-def gm_node(state: GState) -> GState:
+
+def gm_node(state: GState) -> GUpdate:
     '''GMノード：次に何をするか決める（超簡易）'''
     # ここは本来LLMに差し替え。この例では intent 基本 + たまにランダム戦闘
     intent = (state.get("intent") or "explore").lower()
@@ -25,7 +33,7 @@ def gm_node(state: GState) -> GState:
     return {"decision": decision, "message": "GMは次の展開を決めた。"}
 
 
-def battle_node(state: GState) -> GState:
+def battle_node(state: GState) -> GUpdate:
     '''バトルノード：ダメージを与えるだけの最小処理'''
     bundle = SessionBundle.redis_load(state["session_id"])
     if not bundle:
@@ -50,7 +58,7 @@ def battle_node(state: GState) -> GState:
     }
 
 
-def narrate_node(state: GState) -> GState:
+def narrate_node(state: GState) -> GUpdate:
     '''ナレーノード：探索・雰囲気テキストのダミー'''
     bundle = SessionBundle.redis_load(state["session_id"])
     if not bundle:
