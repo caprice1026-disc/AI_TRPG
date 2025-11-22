@@ -1,0 +1,685 @@
+AI ソロ TRPG Web アプリケーション 要件定義書（ドラフト）
+1. システム概要
+1.1 目的
+
+本システムは、生成 AI をゲームマスター（以下「AI GM」）として用い、ユーザ 1 人で TRPG をプレイ可能にする Web アプリケーションを提供することを目的とする。
+
+AI GM には LangChain / LangGraph ベースの Deep Agents（deepagents ライブラリ） を採用し、
+計画・文脈管理・サブエージェント・長期メモリの機能を活用する。
+LangChain Docs
++1
+
+1.2 想定ユーザ
+
+個人の TRPG プレイヤー（1 人で遊びたい人）
+
+GM 準備の負荷を下げたい TRPG プレイヤー
+
+システムの PoC を開発するエンジニア（※最初は自分用）
+
+1.3 想定利用シナリオ
+
+ユーザがブラウザからアクセスし、キャラクターを作成
+
+AI GM が世界設定とシーンを提示
+
+ユーザが「行動宣言 or 選択肢」を入力
+
+AI GM が行為判定・ダメージ・状態変化をサーバ側ルールエンジンで処理しつつ、物語を進行
+
+途中でセーブ・ロードし、同じキャンペーンを継続
+
+2. 前提条件・制約
+2.1 技術スタック
+
+バックエンド
+
+Python 3.x
+
+Flask
+
+deepagents + LangGraph / LangChain
+LangChain Docs
++2
+LangChain Docs
++2
+
+データベース：PoC 段階は SQLite を想定
+
+フロントエンド
+
+PoC：素の HTML / JavaScript
+
+将来：TypeScript + 任意フレームワーク（例：React）への移行を想定
+
+インフラ
+
+ローカル環境 or 小規模クラウド（単一インスタンス想定）
+
+2.2 Deep Agents 利用方針（概要）
+
+Deep Agents は、LangGraph 上に構築された「エージェント・ハーネス」であり、
+以下の能力を標準提供する。
+LangChain Docs
++1
+
+タスク分解・ToDo 管理（write_todos）
+
+ファイルシステムを利用したコンテキスト管理（ls, read_file, write_file, edit_file, glob, grep）
+
+サブエージェント（task ツールによる委譲）
+
+会話履歴の自動要約（長い会話の圧縮）
+
+ファイルシステムバックエンド（State / Filesystem / Store / Composite）
+LangChain Docs
++1
+
+本システムではこれらに TRPG 専用ツールを追加し、
+AI GM に「ダイスを振る」「行為判定を行う」「世界状態を読み書きする」ための API を提供する。
+
+3. システム全体構成
+3.1 概念図（テキスト）
+[Browser (HTML/JS)]
+   |  HTTP (JSON)
+   v
+[Flask API]
+   |-- Session / State 管理 (DB)
+   |-- Dice / Rule Engine
+   |-- AI GM Adapter (Deep Agents)
+        |
+        v
+    [Deep Agent (create_deep_agent)]
+        - Model (OpenAI 等)
+        - TRPG 専用 Tools
+        - Filesystem Backend (StateBackend + StoreBackend など)
+
+3.2 主要コンポーネント
+
+Web フロント：チャット UI、選択肢ボタン、キャラステータス表示
+
+API サーバ：Flask による REST / SSE など
+
+ゲームエンジン：
+
+ダイスエンジン
+
+ルール評価（Skill / Attack / Save）
+
+HP / 条件管理
+
+AI GM：
+
+Deep Agents により構築したエージェント
+
+TRPG 専用ツール群
+
+TRPG 用 System Prompt
+
+4. 機能要件（FR）
+4.1 優先度と実装フェーズ
+
+P0 = MUST（MVP で必須） → Phase 1
+
+P1 = SHOULD（遊び心地向上） → Phase 2
+
+P2 = NICE（拡張要素） → Phase 3 以降
+
+以下、代表的な要件のみ列挙（詳細は拡張可能）。
+
+4.2 セッション・キャンペーン管理
+
+FR-001 セッション作成／再開（P0 / Phase 1）
+
+ユーザは新規セッション（≒キャンペーン）を作成できる。
+
+セッションには以下を紐付ける：
+
+PC キャラクター
+
+世界設定（選択 or デフォルト）
+
+難易度・セーフティ設定
+
+セッション ID を発行し、次回以降は同 ID で再開可能とする。
+
+FR-002 セーブ／ロード（P0 / Phase 1）
+
+セッションの状態（世界フラグ、PC ステータス、AI コンテキスト要約など）を保存し、後から復元できる。
+
+自動セーブ（一定ターンごと / 明示的な「セーブ」操作時）を提供。
+
+4.3 キャラクター管理
+
+FR-010 PC 作成／編集（P0 / Phase 1）
+
+PC の基本情報：
+
+名前、種族、クラス、レベル、能力値（STR/DEX 等）
+
+HP、AC、主要技能値
+
+導出値は式により自動計算：
+
+例：AC = 10 + DEX修正 + 装備補正
+
+将来的に JSON Schema でシート構造を定義可能にする（P1）。
+
+FR-011 キャラ表示パネル（P0 / Phase 1）
+
+現在 HP、条件（毒・転倒など）をリアルタイム表示。
+
+ターン進行に合わせて自動更新されること。
+
+4.4 ダイス・判定エンジン
+
+FR-020 ダイスロール API（P0 / Phase 1）
+
+サーバ側で以下の式を解釈し、乱数と計算結果を返す：
+
+NdX、加減乗除、括弧
+
+有利不利（例：adv(d20+5)）
+
+高低取り（kh/kl）、爆発ダイス! は将来的に対応（P1）
+
+ロール結果は「展開（個々の目）」を含めて監査ログに記録する。
+
+FR-021 行為判定（Skill / Attack / Save）（P0 / Phase 1）
+
+Skill Check：1d20 + 能力修正 + 技能値 >= DC
+
+Attack：命中判定 → ダメージ → HP 更新 → 状態付与
+
+Save：対象側が抵抗ロールを行い、成功・失敗で効果が変化
+
+FR-022 ルール評価 DSL（縮小版）（P0 / Phase 1）
+
+Attack / Skill / Save の判定ロジックを JSON テンプレートで宣言的に定義し、エンジンが解釈する。
+
+DSL はアプリの Python 側で評価し、AI は直接数値をいじらない。
+
+4.5 AI GM 対話・画面
+
+FR-030 チャット UI（P0 / Phase 1）
+
+ログ形式で以下を表示：
+
+AI GM の叙述
+
+プレイヤー入力
+
+判定結果と解説（例：「〈知覚〉判定に成功。隠された罠を発見した。」）
+
+ユーザは以下のいずれかで行動入力する：
+
+自由入力（テキスト）
+
+AI GM が提示した選択肢ボタン
+
+FR-031 AI GM ターン API（P0 / Phase 1）
+
+エンドポイント：POST /api/gm/turn
+
+入力：
+
+session_id
+
+player_input（任意）
+
+selected_choice_id（任意）
+
+処理：
+
+DB からセッション状態を読み出し
+
+Deep Agent にメッセージ履歴と状態要約を渡し invoke()
+LangChain Docs
++1
+
+Agent 出力から「叙述」と「ツール呼び出し」を解釈
+
+TRPG ツールを通じてダイス・ルール処理を実行
+
+更新後の世界状態を保存し、フロントに返す
+
+出力：
+
+narration（叙述）
+
+choices（選択肢）
+
+log（判定イベント）
+
+state（HP などのサマリ）
+
+4.6 AI GM（Deep Agents）関連機能
+
+FR-040 Deep Agent 構成（P0 / Phase 1）
+
+deepagents.create_deep_agent() を用いて AI GM エージェントを生成する。
+LangChain Docs
++1
+
+使用モデルは LangChain の init_chat_model() などで初期化可能とする。
+LangChain Docs
++1
+
+システムプロンプトには以下を含む：
+
+「あなたは TRPG の GM である」
+
+「ダイス結果やステータス変更は必ずツールを通じて行う」
+
+「世界設定とセーフティ設定を尊重する」
+
+「出力形式の制約（例：叙述＋ツール使用の指示）」
+
+FR-041 TRPG 専用ツール定義（P0 / Phase 1〜2）
+
+Deep Agent に以下の Python 関数をツールとして渡す：
+
+request_skill_check(actor_id, skill, dc)
+
+サーバ側でダイスロール＋判定し、結果と説明文を返す。
+
+attack_roll(attacker_id, target_id, weapon_id)
+
+命中・ダメージ・状態などを一括処理。
+
+query_game_state(selector)
+
+PC/NPC/シーンの情報を取得（AI が状況把握に使用）。
+
+update_world_fact(key, value)
+
+世界フラグ更新（例：クエスト進捗）。
+
+AI GM は Deep Agents のツール呼び出し機構を通じてこれらを利用し、
+本体はあくまで「叙述と意思決定」に集中する。
+LangChain Docs
++1
+
+FR-042 Deep Agents の計画・サブエージェント利用（P1 / Phase 2）
+
+長めのタスク（例：ダンジョン全体の構成、NPC の背景生成）では、
+
+write_todos を用いたタスク分解
+
+task によるサブエージェント生成
+を利用可能とする。
+LangChain Docs
++1
+
+サブエージェント用ツール（例：設定生成専用ツール）を別途定義する。
+
+FR-043 Deep Agents ファイルシステム／メモリ設定（P1 / Phase 2）
+
+デフォルトは StateBackend によるスレッド内一時ストレージを使用。
+LangChain Docs
++1
+
+将来的に以下のような CompositeBackend を利用：
+
+/workspace/：StateBackend（セッション内の一時作業）
+
+/memories/：StoreBackend または FilesystemBackend（キャンペーンをまたいだ長期記憶）
+
+「TRPG 設定」「過去の出来事の要約」などを /memories/ に保持し、Deep Agent が参照できるようにする。
+
+4.7 ログ・リプレイ
+
+FR-050 判定・イベントログ（P0 / Phase 1）
+
+ダイスロール、判定、状態変化、AI ツール呼び出しをすべてログとして記録し、セッション毎に閲覧可能にする。
+
+FR-051 リプレイエクスポート（P1 / Phase 2）
+
+セッションログを Markdown / JSON 形式でエクスポートできること。
+
+4.8 セーフティ・コンテンツ制御
+
+FR-060 セーフティ設定（P0 / Phase 1）
+
+ユーザは以下のカテゴリの許容レベルを設定できる：
+
+暴力表現、グロ表現、性的表現、ホラー、宗教・信仰 など
+
+システムプロンプトにこれらを反映し、AI GM のトーンと内容を制御する。
+
+FR-061 X-Card / 中断機能（P1 / Phase 2）
+
+プレイヤーは任意のタイミングで「NG ボタン」を押下できる。
+
+押下時の要求：
+
+直前のシーンから分岐し、別の展開を AI GM に生成させる。
+
+問題のある内容はログには残すが、再利用しない。
+
+4.9 拡張機能（Phase 2〜3）
+
+FR-100 戦闘トラッカー（P1 / Phase 2）
+
+イニシアチブ順、ターン管理、ラウンド数、条件アイコンなどを一覧表示。
+
+Deep Agent のツールから「戦闘開始」「ターン終了」等のトリガーを受け取り、進行を自動化。
+
+FR-110 コンペンディウム（P1 / Phase 2）
+
+アイテム / スキル / 魔法 / モンスターの辞書データを閲覧・検索・参照できる。
+
+将来的には RAG で Deep Agent にも参照させる。
+
+FR-120 世界・クエスト管理（P1 / Phase 2）
+
+場所、NPC、派閥、クエスト、フラグを管理する簡易 Wiki。
+
+Deep Agent から query_game_state などで参照可能。
+
+FR-200 簡易 VTT（P2 / Phase 3）
+
+マップ画像のアップロード、PC/NPC トークンの配置。
+
+グリッド移動と距離計測のみ最初に対応（FoW・照明は後日）。
+
+5. 非機能要件（NFR）
+5.1 性能
+
+想定同時利用者：当面は 1〜数名（開発者の個人利用）
+
+1 ターンあたりの応答時間目標：
+
+モデル応答込みで 5〜10 秒程度を目標。
+
+Deep Agents の会話履歴要約・大きなツール結果のファイル退避により、
+長時間セッションでもコンテキスト窒息を避ける。
+LangChain Docs
+
+5.2 可用性・信頼性
+
+Deep Agent 呼び出し失敗時は再試行し、繰り返し失敗した場合はエラーメッセージを返す。
+
+Deep Agent が壊れた JSON などを返した場合は、
+
+スキーマ検証に失敗した旨をログし、
+
+再プロンプト／手動修正ワークフローを検討（将来的に）。
+
+5.3 セキュリティ
+
+Deep Agent のファイルシステムバックエンドでは、
+
+PoC 段階は「StateBackend（in-state）」「必要に応じて StoreBackend」のみ利用し、
+
+ホストのローカルファイルシステム（FilesystemBackend）は原則使用しない。
+LangChain Docs
++1
+
+モデル API キーは環境変数または安全な設定管理で扱う。
+
+5.4 保守性
+
+Deep Agent 構成（System Prompt / ツール一覧 / Backend 設定）は
+1 ファイル or 1 モジュールに集約し、差し替え可能にする。
+
+TRPG ルール DSL は別モジュールとして切り出し、
+ルール差し替えや複数システム対応に備える。
+
+6. API／データモデル要件（概要）
+6.1 代表的な API
+
+POST /api/gm/turn
+
+AI GM 1 ターン進行
+
+GET /api/session/{id}
+
+セッション状態取得
+
+POST /api/dice/roll
+
+任意ダイス式のロール結果取得
+
+POST /api/character / PUT /api/character/{id}
+
+キャラクター作成／編集
+
+6.2 データモデル（例）
+
+Session：
+
+id, created_at, user_id, settings, save_blob
+
+Character：
+
+id, name, base_stats, derived_stats, resources
+
+TurnLog：
+
+id, session_id, turn_no, player_input, gm_output, dice_results, world_diff
+
+Deep Agent 側の状態は：
+
+Flask アプリで保持する messages 履歴
+
+Deep Agent のファイルシステム（StateBackend / StoreBackend）
+LangChain Docs
++1
+
+の 2 層で管理する。
+
+7. AI GM 実装方針（Deep Agents 利用）
+7.1 Deep Agents の作成
+
+Deep Agents の Python クイックスタートでは、以下のように create_deep_agent を用いてエージェントを構築する。
+LangChain Docs
++1
+
+from deepagents import create_deep_agent
+from langchain.chat_models import init_chat_model
+
+model = init_chat_model(model="gpt-5")
+
+agent = create_deep_agent(
+    model=model,
+    tools=[...],            # TRPG ツールを渡す
+    system_prompt=GM_PROMPT # TRPG GM 用プロンプト
+)
+
+
+システム要件：
+
+システムは Flask 起動時に agent を初期化し、
+セッション毎に messages とゲーム状態を渡して agent.invoke() できること。
+LangChain Docs
+
+7.2 TRPG 用 System Prompt 要件
+
+役割：TRPG GM
+
+禁則：
+
+ダイスロール結果・HP 変更などの最終決定はしない。
+
+必要な処理は必ずツール呼び出しで行う。
+
+出力スタイル：
+
+叙述をプレーンテキストで返す。
+
+必要に応じて「こういう判定を行いたい」という意図をツール呼び出しで表現する。
+
+セーフティ設定・世界設定をプロンプトに含める。
+
+7.3 ツール設計
+
+Deep Agents ではツールを Python 関数として定義し、create_deep_agent(tools=[...]) に渡す。
+LangChain Docs
++1
+
+例：
+
+def skill_check(actor_id: str, skill: str, dc: int):
+    """
+    サーバ側でダイスロール・判定を実施し、
+    結果 (success/failure, margin, explanation) を返す。
+    """
+    ...
+
+def attack(actor_id: str, target_id: str, weapon_id: str):
+    """
+    命中・ダメージ・状態付与を一括処理。
+    ゲーム状態を更新しつつ、演出的な一言も返す。
+    """
+    ...
+
+
+要件：
+
+すべてのルール処理は Python 側ツールで完結させる。
+
+ツール戻り値は AI が読みやすいテキスト＋構造化データ（例：JSON）を含める。
+
+後からツールを追加・削除しやすいよう、TRPG 用ツールを 1 モジュールに集約する。
+
+7.4 ファイルシステム／バックエンド設計
+
+Deep Agents のファイルシステムは pluggable backend であり、
+StateBackend / FilesystemBackend / StoreBackend / CompositeBackend を利用できる。
+LangChain Docs
++1
+
+要件：
+
+PoC 段階
+
+StateBackend（デフォルト）をそのまま利用し、
+同一セッション内の一時メモ（ToDo、長文サマリなど）のみに使用する。
+
+長期利用段階（Phase 2 以降）
+
+/memories/ 以下を StoreBackend や FilesystemBackend にルーティングする CompositeBackend を利用し、
+キャンペーンをまたいだ長期記憶を実現する。
+
+7.5 会話・状態管理フロー
+
+ブラウザ → Flask
+
+POST /api/gm/turn にプレイヤー入力を送信。
+
+Flask
+
+DB から session・character・world 状態を読み込み、
+messages 履歴を組み立てる。
+
+Flask → Deep Agent
+
+agent.invoke({"messages": messages + [player_message]}) を呼び出す。
+LangChain Docs
+
+Deep Agent 内部
+
+System Prompt + メッセージ履歴 + ファイルシステム上のメモをもとに応答を生成。
+
+必要に応じて TRPG ツールを呼び出す。
+
+Flask
+
+ツール呼び出し結果を反映済みの messages から GM の最終発話を取得。
+
+ゲーム状態・ログを更新し、フロントへ返す。
+
+※ LangGraph の「状態管理・チェックポイント・要約」機能は Deep Agents 側で提供される。
+LangChain Docs
++2
+LangChain Docs
++2
+
+8. 実装順序（推奨）
+Phase 1：MVP（1 人で一応遊べるライン）
+
+FR-001 セッション作成／再開
+
+FR-010 PC 作成／編集（基本ステのみ）
+
+FR-020 ダイスロール API（基本的な NdX と加算）
+
+FR-021 行為判定（Skill / Attack / Save の最小実装）
+
+FR-022 ルール DSL（縮小版）
+
+FR-030 チャット UI（自由入力＋ログ）
+
+FR-031 AI GM ターン API（Deep Agent 呼び出し）
+
+FR-040 Deep Agent 構成（System Prompt + モデル）
+
+FR-041 基本 TRPG ツール数個
+
+FR-050 判定・イベントログ
+
+FR-060 セーフティ設定（最低限）
+
+→ この段階で「短編ダンジョンを AI GM と 1 人で遊べる」状態を目指す。
+
+Phase 2：遊び心地・継続性の向上
+
+FR-041 ツール拡充（攻撃・複雑なスキル・状態管理）
+
+FR-042 Deep Agents の計画・サブエージェント利用
+
+FR-043 ファイルシステムバックエンドの拡張（Composite / /memories/）
+
+FR-100 戦闘トラッカー
+
+FR-110 コンペンディウム（ルール／アイテム辞書）
+
+FR-120 世界・クエスト管理
+
+FR-051 リプレイエクスポート
+
+FR-061 X-Card / 中断機能
+
+→ 「同じキャンペーンを何度も継続できる」「戦闘が楽」「設定管理が楽」な段階。
+
+Phase 3 以降：表現力・体験強化
+
+FR-200 簡易 VTT（マップ、トークン、距離測定）
+
+PWA 対応、オフライン閲覧
+
+音声読み上げ・BGM 選択
+
+Deep Agents 長期メモリ + RAG による高度な世界観一貫性
+
+9. まとめ
+
+本システムは、Deep Agents を AI GM として採用しつつ、TRPG のルールと乱数は Flask 側で厳格に管理する構成とする。
+
+機能要件は P0（MVP）、P1（プレイアビリティ向上）、P2（体験強化） に分け、
+特に Phase 1 では「チャット＋判定＋セーブ」が動けば良しとする。
+
+Deep Agents の計画・ファイルシステム・サブエージェント・長期メモリを活用し、
+TRPG にありがちな「設定忘れ」「長時間セッションのコンテキスト喪失」をライブラリ側の機能で吸収する。
+LangChain Docs
++2
+LangChain Docs
++2
+
+このドラフトをベースに、次のステップでは：
+
+各 FR ごとの「画面モック」「API I/F 定義」「ルール DSL 仕様」
+
+Deep Agent 用 System Prompt の初版
+
+TRPG ツールの最小セット定義
+
+参考
+
+https://docs.langchain.com/oss/python/deepagents/quickstart
+https://docs.langchain.com/oss/python/deepagents/customization
+https://docs.langchain.com/oss/python/deepagents/backends
+https://docs.langchain.com/oss/python/deepagents/subagents
+https://docs.langchain.com/oss/python/deepagents/long-term-memory
+https://docs.langchain.com/oss/python/deepagents/middleware
