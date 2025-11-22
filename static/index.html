@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Solo TRPG MVP</title>
+  <style>
+    body { font-family: "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 0; }
+    header { background: #111827; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.4); }
+    h1 { margin: 0; font-size: 20px; }
+    main { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 16px; }
+    section { background: #1f2937; border: 1px solid #334155; border-radius: 8px; padding: 12px; }
+    label { display: block; margin: 6px 0 2px; font-size: 12px; color: #cbd5e1; }
+    input, textarea, select, button { width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #334155; background: #0b1220; color: #e2e8f0; }
+    button { cursor: pointer; background: #2563eb; border: none; font-weight: 600; }
+    button.secondary { background: #475569; }
+    .row { display: flex; gap: 8px; }
+    .row > div { flex: 1; }
+    #log { height: 260px; overflow-y: auto; background: #0b1220; padding: 8px; border-radius: 8px; border: 1px solid #334155; }
+    .log-entry { margin-bottom: 8px; }
+    .choices button { width: auto; margin-right: 6px; margin-bottom: 6px; }
+    #state { font-size: 14px; line-height: 1.4; }
+    .panel-title { font-weight: 700; margin-bottom: 6px; }
+    .tag { display: inline-block; background: #14b8a6; color: #0b1220; padding: 2px 6px; border-radius: 6px; font-size: 12px; margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AI Solo TRPG MVP</h1>
+  </header>
+  <main>
+    <section>
+      <div class="panel-title">Session</div>
+      <label for="sessionName">New session name</label>
+      <input id="sessionName" placeholder="Dungeon Dive">
+      <button id="createSessionBtn">Create Session</button>
+      <label for="sessionId">Existing session ID</label>
+      <input id="sessionId" placeholder="Paste session id">
+      <button class="secondary" id="loadSessionBtn">Load Session</button>
+      <div id="sessionInfo"></div>
+    </section>
+
+    <section>
+      <div class="panel-title">Character</div>
+      <label for="charName">Name</label>
+      <input id="charName" placeholder="Aria">
+      <div class="row">
+        <div>
+          <label for="charRace">Race</label>
+          <input id="charRace" placeholder="Human">
+        </div>
+        <div>
+          <label for="charClass">Class</label>
+          <input id="charClass" placeholder="Fighter">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="charLevel">Level</label>
+          <input id="charLevel" type="number" value="1">
+        </div>
+        <div>
+          <label for="charHP">HP</label>
+          <input id="charHP" type="number" value="12">
+        </div>
+      </div>
+      <div class="row">
+        <div><label>STR</label><input id="statSTR" type="number" value="16"></div>
+        <div><label>DEX</label><input id="statDEX" type="number" value="12"></div>
+        <div><label>CON</label><input id="statCON" type="number" value="14"></div>
+      </div>
+      <div class="row">
+        <div><label>INT</label><input id="statINT" type="number" value="10"></div>
+        <div><label>WIS</label><input id="statWIS" type="number" value="10"></div>
+        <div><label>CHA</label><input id="statCHA" type="number" value="8"></div>
+      </div>
+      <button id="saveCharacterBtn">Save Character</button>
+      <div id="characterInfo"></div>
+    </section>
+
+    <section style="grid-column: span 2;">
+      <div class="panel-title">GM Chat</div>
+      <div id="log"></div>
+      <div class="choices" id="choices"></div>
+      <label for="playerInput">Your action</label>
+      <textarea id="playerInput" rows="3" placeholder="I search the chamber for traps"></textarea>
+      <div class="row">
+        <button id="sendBtn">Send to GM</button>
+        <div>
+          <label for="diceExpr">Quick roll</label>
+          <div class="row">
+            <input id="diceExpr" placeholder="1d20+5">
+            <button id="rollBtn">Roll</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="panel-title">State</div>
+      <div id="state"></div>
+    </section>
+    <section>
+      <div class="panel-title">Recent Dice</div>
+      <div id="diceLog"></div>
+    </section>
+  </main>
+  <script src="main.js"></script>
+</body>
+</html>

@@ -3,7 +3,7 @@ from typing import TypedDict, Literal
 from typing_extensions import NotRequired # Python 3.10までは typing_extensions から
 from langgraph.graph import StateGraph, START, END
 import random
-from models import SessionBundle
+from old.models import SessionBundle
 
 
 class GState(TypedDict):
