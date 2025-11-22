@@ -1,104 +1,56 @@
-# AI_TRPG
-OpenAIのエージェントフレームワークを使用したTRPG
+# AI Solo TRPG (PoC)
+Flask ベースのソロ TRPG サーバー兼簡易 Web クライアント。AI GM には Deep Agents（LangChain/LangGraph）を想定しつつ、手元だけでも動くフォールバック GM を備えた Proof of Concept です。要件は `youken.txt` のドラフトに沿って進めています。
 
-# 現状
-~~OpenAIのフレームワークであるSwarmの使用感を確認中。~~
+## いまの状態
+- Python + Flask + SQLite（`trpg.db`）でセッション・キャラクター・ログを保存
+- GM ターンは `trpg_app/gm_agent.py` で処理し、`USE_DEEPAGENTS=1` 環境変数がある場合は deepagents + LangChain モデルを使用（未設定時は簡易ナレーターでオフライン動作）
+- ルール/ダイス評価はサーバー側で確定させる方針（`trpg_app/dice.py`, `trpg_app/rules.py`）
+- シングルページの最小 UI を `static/` に同梱（セッション作成・PC 作成・GM チャット・簡易ダイス）
+- 要件ドラフト (`youken.txt`) の P0 項目に相当する部分を中心に実装済み（セッション作成、PC 作成、ダイスロール、GM ターン、ログ保管など）。戦闘トラッカーや長期メモリなど P1+ は未着手。
 
-→swarmではなく正式なエージェントフレームワークが発表されたのでそちらかlangchainに切り替える。
+## セットアップ
+1. Python 3.11 以上を準備  
+2. 依存インストール
+   ```bash
+   pip install -r requirements.txt
+   # Deep Agents を使う場合は別途
+   pip install deepagents langchain
+   ```
+3. 起動
+   ```bash
+   python app.py
+   # http://localhost:5000 で UI / API を利用
+   ```
 
-## エージェント
+主要な環境変数:
+- `TRPG_DB_PATH` … SQLite のパス（デフォルト: `trpg.db`）
+- `USE_DEEPAGENTS` … `1` で Deep Agents を有効化。未設定ならフォールバック GM のみ。
+- `GM_MODEL` … Deep Agents 使用時のモデル名（デフォルト: `gpt-4o-mini`）
 
-```mermaid
-graph LR
-    subgraph "プレイヤー空間"
-        P[プレイヤー]
-    end
+## API ざっくり
+- `POST /api/session` — セッション作成（`name`, `settings`, `safety` 任意）
+- `GET /api/session/{id}` — セッション取得（キャラ・ログ含む）
+- `POST /api/character` — キャラクター作成（`session_id`, `name` 必須）
+- `PUT /api/character/{id}` — キャラクター更新
+- `POST /api/dice/roll` — ダイスロール（式は `NdX`、加算、優劣・高低取りなど `trpg_app/dice.py` 参照）
+- `POST /api/gm/turn` — GM 1 ターン進行（`session_id` と `player_input` または `selected_choice_id`）
+- `GET /api/health` — 動作確認
 
-    subgraph "AI GM システム"
-        Orch(オーケストレーター)
-        Scenario(シナリオ / プロット管理)
-        World(世界観 / 描写)
-        Rules(ルール設定 / 判定)
-        State(状態管理)
+## ファイル案内
+- `app.py` … Flask エントリーポイント
+- `trpg_app/db.py` … SQLite 初期化とセッション管理
+- `trpg_app/models.py` … ORM モデル（Session / Character / TurnLog / DiceLog）
+- `trpg_app/services.py` … セッション / キャラ CRUD、ログ保存、状態サマリ
+- `trpg_app/dice.py` / `trpg_app/rules.py` … ダイス式評価と簡易ルール判定
+- `trpg_app/gm_agent.py` … Deep Agents 連携とフォールバック GM
+- `trpg_app/tools.py` … GM から呼ぶ TRPG 用ツール群（skill check, attack, world fact 更新など）
+- `static/` … 簡易ブラウザ UI（`index.html`, `main.js`）
 
-        %% 状態管理への接続: 各エージェントは状態を随時参照・更新
-        Orch -.-> State
-        Scenario -.-> State
-        World -.-> State
-        Rules -.-> State
-    end
+## youken.txt ドラフトとの対応
+- P0（Phase 1 想定）: セッション作成/セーブ、PC 作成、ダイスロール API、GM ターン API、判定ログ保存、最低限のセーフティ設定パラメータをサポート。
+- 未実装・これから: 長期メモリバックエンド（/memories）、Deep Agents の計画系サブエージェント、戦闘トラッカー、コンペンディウム、X-Card、リプレイエクスポートなど P1+ 項目。
+- ルール処理は「AI はダイスを偽造せず、Python ツール経由で行う」方針を踏襲。
 
-    %% --- フロー定義 ---
-
-    %% 1. プレイヤー入力 → オーケストレーター
-    P -- 1 アクション入力 --> Orch
-
-    %% 2. オーケストレーター → シナリオ、プロット管理
-    %% (ダイスロール要否など検討)
-    Orch -- 2 状況に応じた指示 --> Scenario
-
-    %% 3. シナリオ、プロット管理からの分岐
-    subgraph "3 状況に応じた処理分岐"
-        direction LR
-        %% 分岐ノード定義
-        World_Proc(描写処理)
-        Rules_Proc(判定処理)
-        Combat_Proc(戦闘処理)
-        World_Combat_Start(戦闘描写 開始)
-        World_Combat_Cont(戦闘描写 継続/結果)
-
-        %% シナリオからの分岐接続
-        Scenario -- 3a. ダイスロール不要 --> World_Proc
-        Scenario -- 3b. ダイスロール要 --> Rules_Proc
-        Scenario -- 3c. 戦闘 --> Combat_Proc
-
-        %% 各処理から担当エージェントへ接続
-        World_Proc --> World
-        Rules_Proc --> Rules
-
-        %% 3b. ダイスロール要の場合: 判定後に描写
-        Rules -- 判定結果 --> World
-
-        %% 3c. 戦闘の場合: 戦闘描写 → 判定 → 戦闘描写 → 世界観描写
-        Combat_Proc --> World_Combat_Start
-        %% 戦闘判定指示
-        World_Combat_Start --> Rules
-        %% 戦闘判定結果を受けて描写継続/結果
-        Rules -- 戦闘判定結果 --> World_Combat_Cont
-        %% 戦闘結果を反映した世界観描写へ
-        World_Combat_Cont --> World
-    end
-
-    %% 4. 世界観描写 → オーケストレーター → プレイヤー
-    World -- 4a. 生成された描写 --> Orch
-    Orch -- 4b. 最終的な応答生成 --> P
-
-    %% 内部的な状態参照・更新 (点線で表現)
-    Rules <--> State
-    World <--> State
-    Scenario <--> State
-
-```
-
-
-TRPGを実装するために、以下のエージェントを実装
-
-1. **ゲームマスターエージェント（GMエージェント）**
-   - プレイヤーの行動に応じてストーリーを進行し、シナリオを管理する。
-
-2. **戦闘エージェント**
-   - 戦闘の処理を担当し、ダメージ計算や結果の判定を行う。
-
-3. **キャラクター管理エージェント**
-   - キャラクターの作成、レベルアップ、ステータス更新を行う。
-
-4. **アイテム管理エージェント**
-   - アイテムの追加・削除やインベントリの管理を行う。
-
-5. **ワールドエージェント**
-   - ゲーム内の世界や環境、イベントを管理する。
-
-6. **NPCエージェント**
-   - 非プレイヤーキャラクターの行動や会話を制御する。
-
-これらのエージェントを組み合わせて、TRPGのシステムを構築する予定。
+## 開発メモ
+- Deep Agents を試す場合は `USE_DEEPAGENTS=1` を設定し、モデル提供元の環境変数（例: `OPENAI_API_KEY`）も合わせて用意してください。
+- ルール拡張や DSL 化は `trpg_app/rules.py` を起点に追加する想定です。
